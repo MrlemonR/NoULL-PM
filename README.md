@@ -116,11 +116,16 @@ status line.
 
 ## Requirements
 
-`pacman`, `yay`, `curl`. Missing ones are reported at startup.
+`pacman`, `yay`, `curl`, a Rust toolchain (`cargo`). `install.sh` checks for
+all of these and offers to install `rust` via pacman if it's missing.
 
-## Building
+## Installing
 
 ```bash
-cargo build --release
-install -Dm755 target/release/noull-pm ~/.local/bin/noull-pm
+git clone https://github.com/MrlemonR/noull-pm.git
+cd noull-pm
+./install.sh
 ```
+
+Builds the release binary and installs it to `~/.local/bin/noull-pm`. Safe to
+re-run — it just rebuilds and reinstalls.
