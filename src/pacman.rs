@@ -32,6 +32,16 @@ impl Pkg {
     }
 }
 
+/// "26.2.5-1" -> "26.2.5", "1:1.6.8-1" -> "1:1.6.8"
+///
+/// Arch's pkgver can't contain a '-', so the last one always introduces
+/// pkgrel. A split package's translation/locale sub-packages are commonly
+/// rebuilt with their own pkgrel independent of the parent — comparing on
+/// full "version-rel" strings misses those; the pkgver alone still matches.
+fn base_version(version: &str) -> &str {
+    version.rsplit_once('-').map(|(v, _)| v).unwrap_or(version)
+}
+
 /// "pcre2", "pacman>6.1", "sh=1.0" -> "pcre2"
 ///
 /// Dependencies arrive with version constraints; checking whether one is
@@ -178,6 +188,40 @@ pub fn search(query: &str, installed_names: &HashSet<String>) -> Vec<Pkg> {
             votes,
             ..Default::default()
         });
+    }
+
+    // Split packages (Arch's term for several packages built from one
+    // PKGBUILD — locale packs, sub-plugins) are named "<parent>-<suffix>"
+    // and share the parent's pkgver. Searching "libreoffice" otherwise
+    // returns libreoffice-fresh plus ~400 per-locale packages
+    // (libreoffice-fresh-af, -am, -ar, ...), each one just noise once
+    // libreoffice-fresh itself is installed.
+    //
+    // Matching on pkgver, not the full "version-rel" string, is what catches
+    // libreoffice-still's own locale packs too — Arch rebuilds those with
+    // their own pkgrel (still-af 25.8.7-1 vs still itself 25.8.7-5).
+    // pkgver alone is what keeps this from also swallowing packages that
+    // only *look* namespaced, like python-numpy under python: numpy's
+    // upstream version practically never collides with python's, so it
+    // stays visible.
+    let hidden: HashSet<usize> = (0..out.len())
+        .filter(|&i| {
+            out.iter().enumerate().any(|(j, parent)| {
+                j != i
+                    && base_version(&out[i].version) == base_version(&parent.version)
+                    && out[i].name.len() > parent.name.len()
+                    && out[i].name.starts_with(parent.name.as_str())
+                    && out[i].name.as_bytes()[parent.name.len()] == b'-'
+            })
+        })
+        .collect();
+    if !hidden.is_empty() {
+        out = out
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| !hidden.contains(i))
+            .map(|(_, p)| p)
+            .collect();
     }
 
     // yay prints every AUR result first, so the exact match sinks to the
