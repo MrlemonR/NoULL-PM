@@ -129,3 +129,7 @@ cd noull-pm
 
 Builds the release binary and installs it to `~/.local/bin/noull-pm`. Safe to
 re-run — it just rebuilds and reinstalls.
+
+## License
+
+GPL-3.0 — see [LICENSE](LICENSE).
