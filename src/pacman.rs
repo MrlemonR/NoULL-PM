@@ -195,8 +195,16 @@ pub fn search(query: &str, installed_names: &HashSet<String>) -> Vec<Pkg> {
         } else {
             3
         };
-        // On a tie, repo before AUR, then by name
-        (rank, p.is_aur(), p.name.clone())
+        // On a tie, repo before AUR, then shortest name, then alphabetical.
+        //
+        // NOTE: alphabetical alone was the bug — searching "libreoffice"
+        // put "libreoffice-extension-texmaths" above "libreoffice-fresh"
+        // for no better reason than 'e' < 'f', and buried the actual app
+        // under ~400 per-locale packages (libreoffice-fresh-af, -am, -ar,
+        // ...) that all tie in the same prefix-match rank. The shortest
+        // name in a tier is almost always the base package — a locale or
+        // extension variant is, definitionally, the base name plus more.
+        (rank, p.is_aur(), p.name.len(), p.name.clone())
     });
     out
 }
